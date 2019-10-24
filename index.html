@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Cinema</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <!-- jQuery -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+
+    <!-- jQuery UI -->
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
+
+    <!-- local styles and scripts -->
+    <link rel="stylesheet" href="assets/css/navbar-menu.css">
+    <link rel="stylesheet" href="assets/css/dialog-modal.css">
+    <link rel="stylesheet" href="assets/css/slider-home.css">
+
+   
+
+
+    
+    
+
+    <!-- maps style -->
+    <style>
+
+       #map {
+        height: 425px;
+      }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <a href="#" data-page="home" class="sel-page" id="home-link">Home</a>
+        <a href="#" data-page="cinema" class="sel-page" id="cinema-link">Cinema</a>
+        <div class="dropdown">
+            <button class="dropbtn" ><span id="admin-section-link">Admin Section</span>
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                <a href="#" >Heatmap</a>
+                <a href="#" id="reports-link">Reports</a>
+                <a href="#" data-page="admin/users" class="sel-page" id="user-stats-link">User statistics</a>
+            </div>
+        </div>
+        <div class="dropdown" style="float: right;">
+            <button class="dropbtn">Language
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-content">
+                <a data-lang="ro" class="sel-language" href="#">Ro</a>
+                <a data-lang="en" class="sel-language" href="#">En</a>
+            </div>
+        </div>
+
+        <a id="login-button" href="#" style="float: right;">Login</a>
+        <a id="logout-button" href="#" style="float: right;">Logout</a>
+    </nav>
+    <!-- end navbar -->
+    
+    <div id="page-content">
+    </div>
+
+    <!-- modal login DOM -->
+    <div id="dialog-form" title="Login">
+        <p class="error-messages"></p>
+        <form>
+            <fieldset>
+                <label for="email">Email</label>
+                <input type="text" name="email" id="email" placeholder="your@email.com" class="text ui-widget-content ui-corner-all">
+                <label for="password">Password</label>
+                <input placeholder="Password" type="password" name="password" id="password" class="text ui-widget-content ui-corner-all">
+                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
+    </div>
+
+
+
+    <!-- modal login dialog script -->
+    <script src="assets/js/dialog-modal.js"></script>
+
+    <script src="assets/js/language.js"></script>
+
+    <script src="assets/js/rest-layout.js"></script>
+
+
+
+    <script>
+
+        var durations = {
+            'home' : {
+                time : 0,
+                visit : [new Date().getTime()]
+            },
+            'admin/users' : {
+                time : 0,
+                visit : []
+            },
+            
+            'cinema' : {
+                time : 0,
+                visit : []  // exit time
+            }
+        };
+
+        var currentPage = 'home';
+    $(document).ready(function () {
+
+
+
+
+
+
+            function saveVisitTimeToServer(pageName, duration){
+                var promise = new Promise(function(resolve, reject){
+                    let url = `rest_controller.php?page_time_save=1&page_name=${pageName}&duration=${duration}`;
+                    $.ajax({
+                        url :  url,
+                        success : function(data){
+                            resolve(data);
+                        }
+                    });
+                });
+                
+                return promise;
+            }
+
+            $('.sel-page').click(function (event) {
+
+                event.preventDefault();
+                let path = $(this).attr('data-page');
+                console.log('navigating to: ', path);
+                localStorage.setItem('CURRENT_PAGE', path);
+                let lang = localStorage.getItem('SITE_LANGUAGE') ? localStorage.getItem('SITE_LANGUAGE') : 'en';
+                if (path == 'home') {
+
+                    
+
+                   if(durations[currentPage].visit.length == 0 ){
+                        durations[currentPage].visit.push(new Date().getTime());    
+
+                    }else{
+                        let visitVar = durations[currentPage].visit;
+                        durations[currentPage].visit.push(new Date().getTime());
+                        durations[currentPage].time += visitVar[visitVar.length - 1] - visitVar[visitVar.length - 2];
+                        saveVisitTimeToServer(currentPage, durations[currentPage].time).then(function(srv){
+                            console.log('SAVE OK: ', srv);
+                        });
+                    }
+                    currentPage = 'home';
+                    
+                    
+                    
+                    loadHomePage(lang);
+                    console.log('DURATIONS: ', durations);
+                } else if (path == 'cinema') {
+                    if(durations[currentPage].visit.length == 0 ){
+                        durations[currentPage].visit.push(new Date().getTime());    
+
+                    }else{
+                        let visitVar = durations[currentPage].visit;
+                        durations[currentPage].visit.push(new Date().getTime());
+                        durations[currentPage].time += durations[currentPage].visit[visitVar.length - 1] - durations[currentPage].visit[visitVar.length - 2];
+                        saveVisitTimeToServer(currentPage, durations[currentPage].time).then(function(srv){
+                            console.log('SAVE OK: ', srv);
+                        });
+                    }
+                    currentPage = 'cinema';
+
+                    durations[currentPage].visit.push(new Date().getTime());    
+                    refreshPage(lang);
+                    console.log('DURATIONS: ', durations);
+                }else if (path == 'admin/users') {
+                    if(durations[currentPage].visit.length == 0 ){
+                        durations[currentPage].visit.push(new Date().getTime());    
+
+                    }else{
+                        let visitVar = durations[currentPage].visit;
+                        durations[currentPage].visit.push(new Date().getTime());
+                        durations[currentPage].time += durations[currentPage].visit[visitVar.length - 1] - durations[currentPage].visit[visitVar.length - 2];
+                        saveVisitTimeToServer(currentPage, durations[currentPage].time).then(function(srv){
+                            console.log('SAVE OK: ', srv);
+                        });
+                    }
+                    currentPage = 'admin/users';
+                    durations[currentPage].visit.push(new Date().getTime());    
+                    console.log('ADMIN PAGE');
+                    // refreshPage(lang);
+                    adminPage();
+                    console.log('DURATIONS: ', durations);
+                }
+            });
+        });
+
+
+    </script>
+
+
+
+    <script>
+        function initMap(movie) {
+            console.log('initializing map for movie: ', movie);
+            var myLatLng = movie.filmingLocation;
+
+            console.log('map id: ', document.getElementById('map-' + movie.id));
+            var map = new google.maps.Map(document.getElementById('map-' + movie.id), {
+                zoom: 4,
+                center: myLatLng
+            });
+
+            var marker = new google.maps.Marker({
+                position: myLatLng,
+                map: map,
+                title: movie.title
+            });
+        }
+    </script>
+
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDyJRQ6n7i9c2ncr03yVaiDs6l45B1GTu8">
+    </script>
+
+</body>
+
+</html>
